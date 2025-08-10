@@ -1,2 +1,2 @@
 # gSH
-A command processor with several built in commands
+A programming language without a name but definitely wont actually be used as shell language
