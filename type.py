@@ -17,13 +17,9 @@ class obj:
 class python(obj):
     def __init__(self, data):
         super().__init__(data)
-    
+
     def call(self,args):
         return eval(self.data,globals={"args":args})
-
-class string(obj):
-    def __init__(self, data:str):
-        super().__init__(data)
 
 class num(obj):
     def __init__(self, data:int|float):
@@ -36,7 +32,19 @@ class num(obj):
             return self.data
 
 class array(obj):
-    def __init__(self, data:list):
+    def __init__(self, data:typing.Iterable):
+        super().__init__(data)
+    
+    def call(self,param):
+        idx = param[0]
+        try:
+            idx2 = param[1]
+            return self.data[idx:idx2]
+        except IndexError:
+            return self.data[idx]
+
+class string(array):
+    def __init__(self, data:str):
         super().__init__(data)
 
 class boolean(obj):

@@ -92,7 +92,7 @@ class Parser:
             try:
                 token2 = tokens[idx+1]
                 if not isinstance(token2,array): raise IndexError # does not make sense but idrc lol
-                tokens[idx] = lambda: token.ref().call(token2)
+                tokens[idx] = lambda: token.ref().call(token2.ref())
                 tokens.pop(idx+1)
             except IndexError:
                 tokens[idx] = token.ref()
