@@ -2,7 +2,7 @@ import typing
 
 class obj:
     def __init__(self,data=None):
-        if data:
+        if data is not None:
             self.data = data
         else:
             self.data = self
@@ -22,11 +22,11 @@ class python(obj):
         return eval(self.data,globals={"args":args})
 
 class string(obj):
-    def __init__(self, data):
+    def __init__(self, data:str):
         super().__init__(data)
 
 class num(obj):
-    def __init__(self, data):
+    def __init__(self, data:int|float):
         super().__init__(data)
     
     def ref(self):
@@ -35,10 +35,15 @@ class num(obj):
         else:
             return self.data
 
-class boolean(obj):
-    def __init__(self, data):
+class array(obj):
+    def __init__(self, data:list):
         super().__init__(data)
-class true(boolean):
-    def __init__(self):super().__init__(True)
-class false(boolean):
-    def __init__(self):super().__init__(False)
+
+class boolean(obj):
+    def __init__(self, data:bool):
+        super().__init__(data)
+
+# if the token doesnt match anything above, i.e function name, variables etc
+class reference(obj):
+    def __init__(self, data:obj):
+        super().__init__(data)

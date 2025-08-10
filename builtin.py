@@ -1,9 +1,9 @@
 import type
 import math
 
-def get_global() -> dict[type.obj]:
-    glob = {}
-    glob["print"] = type.python("print(args[0])")
+def get_global():
+    glob:dict[str:type.obj] = {}
+    glob["print"] = type.python("print(args[0].ref())")
     glob["pi"] = type.num(math.pi)
 
     return glob
