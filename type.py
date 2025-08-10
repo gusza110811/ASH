@@ -1,20 +1,25 @@
+import typing
+
 class obj:
-    def __init__(self,data):
-        self.data = data
+    def __init__(self,data=None):
+        if data:
+            self.data = data
+        else:
+            self.data = self
         return
     
     def ref(self): # when the object is referenced. ie. `foo`
         return self.data
 
-    def call(self): # when the object is called . ie. `foo()`
+    def call(self, args:list): # when the object is called . ie. `foo()`
         return
 
 class python(obj):
     def __init__(self, data):
         super().__init__(data)
     
-    def run(self):
-        return eval(self.data)
+    def call(self,args):
+        return eval(self.data,globals={"args":args})
 
 class string(obj):
     def __init__(self, data):
