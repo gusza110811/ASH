@@ -17,6 +17,7 @@ class Shell:
             try:
                 line = input(os.getcwd()+">")
             except KeyboardInterrupt:
+                print(memory.vars)
                 sys.exit()
 
             err, linen, line = self.executor.execute(line)
@@ -27,6 +28,8 @@ class Shell:
 
 class Memory:
     def __init__(self, parent=None):
+        global utils
+        self.utils = utils
         self.vars: dict[str, obj] = {}
         builtin.get_global(self)
 
@@ -40,6 +43,10 @@ class Memory:
         raise NameError(f"'{name}' is not defined")
 
     def set(self, name: str, value: obj):
+        if isinstance(value,call):
+            value = value.call(self)
+        if not isinstance(value,obj):
+            value = self.utils.pytype_to_gsh_type(value)
         self.vars[name] = value
 
     def exists(self, name: str) -> bool:
@@ -60,21 +67,26 @@ class Executor:
         if len(parsed) > 1:
             raise SyntaxError("Multiple expressions in one line")
 
+        def caller(expr:call):
+            result = expr.call(memory)
+            if isinstance(result,call):
+                result = caller(result)
+            return result
 
         expr = parsed[0]
         if isinstance(expr,call) or isinstance(expr,assignment):
-            return self.parser.utils.pytype_to_gsh_type(expr.call(memory))
+            return self.parser.utils.pytype_to_gsh_type(caller(expr))
         else:
             return expr
 
     def execute(self, code:str):
         for idx, line in enumerate(code.replace("\n", ";").split(";")):
-            try:
+            #try:
                 result = self.executeline(line)
                 if result is not None:
                     print(result.ref())
-            except Exception as e:
-                return e, idx, line
+            #except Exception as e:
+            #    return e, idx, line
         
         return None, None, None
 
@@ -110,6 +122,8 @@ class Parser:
         # main parser
         while len(words) != 0:
             token = words.pop(0)
+            if not token.strip():
+                continue
 
             # double quote string
             if token.startswith('"'):
@@ -133,9 +147,6 @@ class Parser:
                 if len(tokens) > 1:
                     raise SyntaxError("Too many target to assign to")
                 value = self.parse("".join(words),mem)[0]
-                if isinstance(value,call):
-                    value = value.call(mem)
-                value = utils.pytype_to_gsh_type(value)
                 words = []
                 tokens.append(assignment([tokens.pop(),value]))
 
