@@ -175,9 +175,9 @@ class Parser:
                 tokens.append(array(parsed_args))
 
             else:
-                try:
+                if mem.exists(token):
                     tokens.append(reference(mem.get(token)))
-                except KeyError:
+                else:
                     tokens.append(undefined(token))
 
         # interpret references(names)
