@@ -1,11 +1,10 @@
 import os
 from type import *
 import builtin
+import sys
 
 class Shell:
-    def __init__(self,parser:"Parser",utils:"Utils",executor:"Executor"):
-        self.parser = parser
-        self.utils = utils
+    def __init__(self,executor:"Executor"):
         self.executor = executor
         return
 
@@ -14,33 +13,82 @@ class Shell:
 
     def main(self):
         while True:
-            line = input(os.getcwd()+">")
-            tokens = self.parser.parse(line)
+            try:
+                line = input(os.getcwd()+">")
+            except KeyboardInterrupt:
+                sys.exit()
 
-            for idx, token in enumerate(tokens):
-                if isinstance(token,obj):
-                    print(f"{type(token)}: {token.ref()}")
-                else:
-                    print(f"{type(token)}: {token}")
+            err, linen, line = self.executor.execute(line)
+
+            if err:
+                print(f"At line {linen}, `{line}`:")
+                print(f">   {err}")
+
+class Memory:
+    def __init__(self, parent=None):
+        self.vars: dict[str, obj] = {}
+        builtin.get_global(self)
+
+        self.parent = parent  # for nested scopes, optional
+
+    def get(self, name: str):
+        if name in self.vars:
+            return self.vars[name]
+        if self.parent:
+            return self.parent.get(name)
+        raise NameError(f"'{name}' is not defined")
+
+    def set(self, name: str, value: obj):
+        self.vars[name] = value
+
+    def exists(self, name: str) -> bool:
+        return name in self.vars or (self.parent and self.parent.exists(name))
+
 
 class Executor:
-    def __init__(self):
-        return
+    def __init__(self, parser:"Parser", memory:Memory):
+        self.parser = parser
+        self.memory = memory
+
+    def executeline(self, line:str):
+        line = line.strip()
+        if not line:
+            return
+
+        parsed = self.parser.parse(line,self.memory)
+        if len(parsed) > 1:
+            raise SyntaxError("Multiple expressions in one line")
+
+        expr = parsed[0]
+        if isinstance(expr,call):
+            return expr.call(memory)
+        else:
+            return expr.ref()
+
+    def execute(self, code:str):
+        for idx, line in enumerate(code.replace("\n", ";").split(";")):
+            #try:
+                result = self.executeline(line)
+                if result is not None:
+                    print(result)
+            #except Exception as e:
+            #    return e, idx, line
+        
+        return None, None, None
 
 class Parser:
     def __init__(self,utils:"Utils"):
         self.utils = utils
-        self.names:dict[obj] = builtin.get_global()
         return
 
-    def parse(self,line:str):
+    def parse(self,line:str,mem:Memory):
         words = line.strip().split()
         tokens:list[obj]=[]
 
         # symbol separator
         tmp = words
         words = []
-        symbols = list("{}[]()<>+-=*&^|:")
+        symbols = list("{}[]()<>+-=*&^|/:,")
         while len(tmp) != 0:
             word = list(tmp.pop(0))
             new = ""
@@ -59,28 +107,78 @@ class Parser:
         # main parser
         while len(words) != 0:
             token = words.pop(0)
+
             # double quote string
             if token.startswith('"'):
                 while not token.endswith('"'):
                     token += " " + words.pop(0)
                 tokens.append(string(token[1:-1]))
+
             # single quote string
             elif token.startswith("'"):
                 while not token.endswith("'"):
                     token += words.pop(0)
                 tokens.append(string(token[1:-1]))
+            
+            # number
             elif self.utils.can_num(token):
                 token = float(token)
                 tokens.append(num(token))
+
+            # array
             elif token.startswith("("):
-                while not token.endswith(")"):
-                    token += words.pop(0)
-                token = token[1:-1].split(",")
-                for idx, item in enumerate(token):
-                    token[idx] = self.parse(item)
-                tokens.append(array(token))
+                # collect everything inside the matching parentheses into inner_tokens
+                inner_tokens = []
+                depth = 1  # we already saw the opening "("
+                while len(words) != 0 and depth > 0:
+                    w = words.pop(0)
+                    if w == "(":
+                        depth += 1
+                    elif w == ")":
+                        depth -= 1
+
+                    # only append tokens that are *inside* the outer parentheses
+                    if depth > 0:
+                        inner_tokens.append(w)
+
+                if depth != 0:
+                    raise SyntaxError("Unmatched '('")
+
+                # split inner_tokens into top-level args on commas (ignore commas in nested brackets)
+                args_token_lists = []
+                cur = []
+                nest = 0
+                for t in inner_tokens:
+                    if t in ("(", "[", "{"):
+                        nest += 1
+                        cur.append(t)
+                    elif t in (")", "]", "}"):
+                        nest -= 1
+                        cur.append(t)
+                    elif t == "," and nest == 0:
+                        args_token_lists.append(cur)
+                        cur = []
+                    else:
+                        cur.append(t)
+                # final arg (could be empty for empty parens)
+                if cur or len(args_token_lists) > 0:
+                    args_token_lists.append(cur)
+
+                # parse each argument token list (join back to a string)
+                parsed_args = []
+                for atoks in args_token_lists:
+                    if not atoks:  # empty arg -> maybe no args
+                        parsed_args.append()
+                    else:
+                        arg_str = " ".join(atoks)
+                        parsed_args.append(self.parse(arg_str,mem)[0])
+                tokens.append(array(parsed_args))
+
             else:
-                tokens.append(reference(self.names[token]))
+                try:
+                    tokens.append(reference(mem.get(token)))
+                except KeyError:
+                    tokens.append(undefined(token))
 
         # interpret references(names)
         idx = -1
@@ -92,7 +190,7 @@ class Parser:
             try:
                 token2 = tokens[idx+1]
                 if not isinstance(token2,array): raise IndexError # does not make sense but idrc lol
-                tokens[idx] = lambda: token.ref().call(token2.ref())
+                tokens[idx] = call([token.ref(),token2.ref()])
                 tokens.pop(idx+1)
             except IndexError:
                 tokens[idx] = token.ref()
@@ -112,9 +210,10 @@ class Utils:
 
 if __name__ == "__main__":
     utils = Utils()
-    executor = Executor()
+    memory = Memory()
     parser = Parser(utils)
-    shell = Shell(parser,utils,executor)
+    executor = Executor(parser,memory)
+    shell = Shell(executor)
 
     shell.c()
     shell.main()
