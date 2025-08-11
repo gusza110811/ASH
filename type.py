@@ -63,30 +63,33 @@ class call(meta):
         self.name = data[0]
         self.params = data[1]
 
-    def call(self, args, mem):
+    def call(self, mem):
         return self.name.call(self.params,mem)
 
 # placeholder if the token doesnt match anything above, i.e function name, variables etc
 class reference(meta):
-    def __init__(self, data:obj):
-        super().__init__(data)
+    def __init__(self, data:list[str,obj]):
+        self.name = data[0]
+        super().__init__(data[1])
+    
+    def get_name(self):
+        return self.name
 
 # soon-to-be or never-to-be references
-class undefined(reference):
+class undefined(reference): # inherits reference just because it does similar job
     def __init__(self, data:str):
-        super().__init__(data)
-    
+        self.name = data
+
     def ref(self):
         raise NameError(f"{self.data} is not defined")
 
 class assignment(meta):
-    def __init__(self, data: list[undefined, obj]):
-        # data[0] is an undefined (variable name)
-        # data[1] is the value object
-        super().__init__(data)
+    def __init__(self, data: list[undefined|reference|obj]):
+        self.name = data[0].get_name()
+        self.value = data[1]
 
-    def call(self, args, mem:"gsh.Memory"):
-        mem.set(self.data[0], self.data[1])
+    def call(self, mem:"gsh.Memory"):
+        mem.set(self.name, self.value)
         return
 
 if TYPE_CHECKING:

@@ -59,8 +59,9 @@ class Executor:
         if len(parsed) > 1:
             raise SyntaxError("Multiple expressions in one line")
 
+
         expr = parsed[0]
-        if isinstance(expr,call):
+        if isinstance(expr,call) or isinstance(expr,assignment):
             return expr.call(memory)
         else:
             return expr.ref()
@@ -124,6 +125,16 @@ class Parser:
             elif self.utils.can_num(token):
                 token = float(token)
                 tokens.append(num(token))
+            
+            # assignment
+            elif token == "=":
+                if len(tokens) > 1:
+                    raise SyntaxError("Too many target to assign to")
+                value = self.parse(" ".join(words),mem)
+                words = []
+                if len(value) > 1:
+                    raise SyntaxError("Too many value to assign")
+                tokens.append(assignment([tokens.pop(),value[0]]))
 
             # array
             elif token.startswith("("):
@@ -168,7 +179,7 @@ class Parser:
                 parsed_args = []
                 for atoks in args_token_lists:
                     if not atoks:  # empty arg -> maybe no args
-                        parsed_args.append()
+                        continue
                     else:
                         arg_str = " ".join(atoks)
                         parsed_args.append(self.parse(arg_str,mem)[0])
@@ -176,7 +187,7 @@ class Parser:
 
             else:
                 if mem.exists(token):
-                    tokens.append(reference(mem.get(token)))
+                    tokens.append(reference([token,mem.get(token)]))
                 else:
                     tokens.append(undefined(token))
 
