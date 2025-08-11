@@ -2,6 +2,7 @@ import os
 from type import *
 import builtin
 import sys
+import re
 
 class Shell:
     def __init__(self,executor:"Executor"):
@@ -9,7 +10,7 @@ class Shell:
         return
 
     def c(self):
-        print("gSH (c) 2025 XXX \"Gusza\"")
+        print("gSH (c) 2025 S. \"Gusza\" N.")
 
     def main(self):
         while True:
@@ -55,25 +56,25 @@ class Executor:
         if not line:
             return
 
-        parsed = self.parser.parse(line,self.memory)
+        parsed = self.parser.parse(line,self.memory,self)
         if len(parsed) > 1:
             raise SyntaxError("Multiple expressions in one line")
 
 
         expr = parsed[0]
         if isinstance(expr,call) or isinstance(expr,assignment):
-            return expr.call(memory)
+            return self.parser.utils.pytype_to_gsh_type(expr.call(memory))
         else:
-            return expr.ref()
+            return expr
 
     def execute(self, code:str):
         for idx, line in enumerate(code.replace("\n", ";").split(";")):
-            #try:
+            try:
                 result = self.executeline(line)
                 if result is not None:
-                    print(result)
-            #except Exception as e:
-            #    return e, idx, line
+                    print(result.ref())
+            except Exception as e:
+                return e, idx, line
         
         return None, None, None
 
@@ -82,8 +83,8 @@ class Parser:
         self.utils = utils
         return
 
-    def parse(self,line:str,mem:Memory):
-        words = line.strip().split()
+    def parse(self,line:str,mem:Memory,executor:Executor=None):
+        words = re.split(r"(\s+)", line)
         tokens:list[obj]=[]
 
         # symbol separator
@@ -104,6 +105,7 @@ class Parser:
                     new = ""
             if new:
                 words.append(new)
+        
 
         # main parser
         while len(words) != 0:
@@ -112,7 +114,7 @@ class Parser:
             # double quote string
             if token.startswith('"'):
                 while not token.endswith('"'):
-                    token += " " + words.pop(0)
+                    token += words.pop(0)
                 tokens.append(string(token[1:-1]))
 
             # single quote string
@@ -125,16 +127,17 @@ class Parser:
             elif self.utils.can_num(token):
                 token = float(token)
                 tokens.append(num(token))
-            
+
             # assignment
             elif token == "=":
                 if len(tokens) > 1:
                     raise SyntaxError("Too many target to assign to")
-                value = self.parse(" ".join(words),mem)
+                value = self.parse("".join(words),mem)[0]
+                if isinstance(value,call):
+                    value = value.call(mem)
+                value = utils.pytype_to_gsh_type(value)
                 words = []
-                if len(value) > 1:
-                    raise SyntaxError("Too many value to assign")
-                tokens.append(assignment([tokens.pop(),value[0]]))
+                tokens.append(assignment([tokens.pop(),value]))
 
             # array
             elif token.startswith("("):
@@ -181,7 +184,7 @@ class Parser:
                     if not atoks:  # empty arg -> maybe no args
                         continue
                     else:
-                        arg_str = " ".join(atoks)
+                        arg_str = "".join(atoks)
                         parsed_args.append(self.parse(arg_str,mem)[0])
                 tokens.append(array(parsed_args))
 
@@ -218,6 +221,17 @@ class Utils:
             return True
         except ValueError:
             return False
+
+    def pytype_to_gsh_type(self,value):
+        if (isinstance(value,int)) or (isinstance(value,float)):
+            return num(value)
+        if isinstance(value,str):
+            return string(value)
+        if isinstance(value,typing.Iterable):
+            return array(value)
+    
+    def gsh_type_to_pytype(self,value):
+        return value.ref()
 
 if __name__ == "__main__":
     utils = Utils()

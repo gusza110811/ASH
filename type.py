@@ -81,7 +81,7 @@ class undefined(reference): # inherits reference just because it does similar jo
         self.name = data
 
     def ref(self):
-        raise NameError(f"{self.data} is not defined")
+        raise NameError(f"{self.name} is not defined")
 
 class assignment(meta):
     def __init__(self, data: list[undefined|reference|obj]):
