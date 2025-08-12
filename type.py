@@ -9,10 +9,10 @@ class obj:
             self.data = self
         return
     
-    def ref(self): # when the object is referenced. ie. `foo`
+    def ref(self,mem:"gsh.Memory"=None): # when the object is referenced. ie. `foo`
         return self.data
 
-    def call(self, args:list, mem:"gsh.Memory"): # when the object is called . ie. `foo()`
+    def call(self, args:list, mem:"gsh.Memory") -> typing.Any: # when the object is called . ie. `foo()`
         return
 
 class python(obj):
@@ -62,16 +62,20 @@ class call(meta):
     def __init__(self, data:list[obj,list[obj]]):
         self.name = data[0]
         self.params = data[1]
+        super().__init__(data)
 
     def call(self, mem):
         return self.name.call(self.params,mem)
 
 # placeholder if the token doesnt match anything above, i.e function name, variables etc
 class reference(meta):
-    def __init__(self, data:list[str,obj]):
-        self.name = data[0]
-        super().__init__(data[1])
+    def __init__(self, data:str):
+        self.name = data
+        super().__init__(data)
     
+    def ref(self,mem):
+        return mem.get(self.name)
+
     def get_name(self):
         return self.name
 
@@ -86,10 +90,10 @@ class undefined(reference): # inherits reference just because it does similar jo
 class assignment(meta):
     def __init__(self, data: list[undefined|reference|obj]):
         self.name = data[0].get_name()
-        self.value = data[1]
+        self.params = [data[1]]
 
     def call(self, mem:"gsh.Memory"):
-        mem.set(self.name, self.value)
+        mem.set(self.name, self.params[0])
         return
 
 if TYPE_CHECKING:
