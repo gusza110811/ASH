@@ -20,7 +20,7 @@ class python(obj):
         super().__init__(data)
 
     def call(self,args,mem):
-        return eval(self.data,globals={"args":args})
+        return eval(self.data,{"args":args})
 
 class num(obj):
     def __init__(self, data:int|float):
