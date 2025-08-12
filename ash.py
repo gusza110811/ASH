@@ -1,9 +1,12 @@
 from __future__ import annotations
 import os
-from type import *
-import builtin
 import sys
 import re
+
+import builtin
+from utils import Utils
+from memory import *
+from type import *
 
 class Shell:
     def __init__(self,executor:Executor):
@@ -11,7 +14,7 @@ class Shell:
         return
 
     def c(self):
-        print("ASH (c) 2025 S. \"Gusza\" N.")
+        print("ASH developmental build (c) 2025 S. \"Gusza\" N.")
 
     def main(self):
         while True:
@@ -25,30 +28,6 @@ class Shell:
             if err:
                 print(f"At line {linen}, `{line}`:")
                 print(f">   {err}")
-
-class Memory:
-    def __init__(self, parent=None):
-        global utils
-        self.utils = utils
-        self.vars: dict[str, obj] = {}
-        builtin.get_global(self)
-
-        self.parent = parent  # for nested scopes, optional
-
-    def get(self, name: str):
-        if name in self.vars:
-            return self.vars[name]
-        if self.parent:
-            return self.parent.get(name)
-        raise NameError(f"'{name}' is not defined")
-
-    def set(self, name: str, value: obj):
-        if not isinstance(value,obj):
-            value = self.utils.pytype_to_ash_type(value)
-        self.vars[name] = value
-
-    def exists(self, name: str) -> bool:
-        return name in self.vars or (self.parent and self.parent.exists(name))
 
 
 class Executor:
@@ -64,7 +43,7 @@ class Executor:
                 if isinstance(param,call):
                     expr.params[idx] = caller(param)
                 elif isinstance(param,reference):
-                    expr.params[idx] = param.ref(mem=memory)
+                    expr.params[idx] = param.ref(mem=self.memory)
 
             result = expr.call(self.memory)
             return self.parser.utils.pytype_to_ash_type(result)
@@ -130,7 +109,7 @@ class Parser:
                     token += words.pop(0)
                     if token.endswith(";"):
                         raise SyntaxError('String literal not closed')
-                tokensline.append(string(token[1:-1]))
+                tokensline.append(string(token[1:-1],mem))
 
             # single quote string
             elif token.startswith("'"):
@@ -138,12 +117,12 @@ class Parser:
                     token += words.pop(0)
                     if token.endswith(";"):
                         raise SyntaxError('String literal not closed')
-                tokensline.append(string(token[1:-1]))
+                tokensline.append(string(token[1:-1],mem))
             
             # number
             elif self.utils.can_num(token):
                 token = float(token)
-                tokensline.append(num(token))
+                tokensline.append(num(token,mem))
 
             # assignment
             elif token == "=":
@@ -160,7 +139,7 @@ class Parser:
                 name = tokensline.pop(0)
                 mem.set(name.name, obj())
                 value = self.parse(unparsedvalue, mem)[0]
-                tokensline.append(assignment([name, value]))
+                tokensline.append(assignment([name, value],mem))
                 words = newwords
 
             # array
@@ -210,7 +189,7 @@ class Parser:
                     else:
                         arg_str = "".join(atoks)
                         parsed_args.append(self.parse(arg_str,mem)[0])
-                tokensline.append(array(parsed_args))
+                tokensline.append(array(parsed_args,mem))
             
             elif token == ";":
                 # interpret calls
@@ -223,7 +202,7 @@ class Parser:
                             continue
                         token2 = tokensline[idx+1]
                         if not isinstance(token2,array): raise IndexError # does not make sense but idrc lol
-                        tokensline[idx] = call([token.ref(mem=mem),token2.ref()])
+                        tokensline[idx] = call([token.ref(mem=mem),token2.ref()],mem)
                         tokensline.pop(idx+1)
                     except IndexError:
                         continue
@@ -235,45 +214,17 @@ class Parser:
 
             else:
                 if mem.exists(token):
-                    tokensline.append(reference(token))
+                    tokensline.append(reference(token,mem))
                 else:
-                    tokensline.append(undefined(token))
+                    tokensline.append(undefined(token,mem))
 
         return tokens
 
-class Utils:
-    def __init__(self):
-        return
-
-    def can_num(self,string:str):
-        try:
-            float(string)
-            return True
-        except ValueError:
-            return False
-
-    def pytype_to_ash_type(self,value):
-        if isinstance(value,obj):
-            return value
-
-        if (isinstance(value,int)) or (isinstance(value,float)):
-            return num(value)
-        if isinstance(value,str):
-            return string(value)
-        if isinstance(value,typing.Iterable):
-            return array(value)
-    
-    def ash_type_to_pytype(self,value):
-        return value.ref()
-
-    def dump_mem(self,mem:Memory):
-        for idx, (name, value) in enumerate(mem.vars.items()):
-            print(f"{idx} {name}: {value.ref()}")
-
 
 if __name__ == "__main__":
-    utils = Utils()
     memory = Memory()
+    utils = Utils(memory)
+    builtin.get_global(memory)
     parser = Parser(utils)
     executor = Executor(parser,memory)
     shell = Shell(executor)
