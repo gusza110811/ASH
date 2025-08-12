@@ -213,8 +213,6 @@ class Parser:
                 tokensline.append(array(parsed_args))
             
             elif token == ";":
-                if len(tokensline) > 1:
-                    raise SyntaxError("Too many expressions in one line")
                 # interpret calls
                 idx = -1
                 while idx < len(tokensline)-1:
@@ -229,6 +227,8 @@ class Parser:
                         tokensline.pop(idx+1)
                     except IndexError:
                         continue
+                if len(tokensline) > 1:
+                    raise SyntaxError("Too many expressions in one line")
 
                 tokens.append(tokensline[0])
                 tokensline = []
