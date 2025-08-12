@@ -74,7 +74,7 @@ class Parser:
         if not line.endswith(";"):
             line += ";"
 
-        words = re.split(r"(\s+)", line)
+        words:list[str] = re.split(r"(\s+)", line)
         tokens:list[obj]=[]
         tokensline:list[obj]=[]
 
@@ -141,6 +141,17 @@ class Parser:
                 value = self.parse(unparsedvalue, mem)[0]
                 tokensline.append(assignment([name, value],mem))
                 words = newwords
+            
+            # accessing local things
+            elif token == ":":
+                if len(tokensline) == 0:
+                    raise SyntaxError("Unexpected /")
+                parent = tokensline.pop(0)
+                if isinstance(parent,reference):
+                    parent = parent.ref(mem)
+                child = words.pop(0)
+                result = reference(child,parent.local)
+                tokensline.append(result)
 
             # array
             elif token.startswith("("):
@@ -200,13 +211,15 @@ class Parser:
                     try:
                         if not isinstance(token,reference):
                             continue
+
                         token2 = tokensline[idx+1]
                         if not isinstance(token2,array): raise IndexError # does not make sense but idrc lol
-                        tokensline[idx] = call([token.ref(mem=mem),token2.ref()],mem)
+                        tokensline[idx] = call([token.ref(mem=token.local.parent),token2.ref()],mem)
                         tokensline.pop(idx+1)
                     except IndexError:
                         continue
                 if len(tokensline) > 1:
+                    print(tokensline)
                     raise SyntaxError("Too many expressions in one line")
 
                 tokens.append(tokensline[0])

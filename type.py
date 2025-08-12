@@ -31,9 +31,17 @@ class python(obj):
 class num(obj):
     def __init__(self, data:int|float, mem:memory.Memory):
         super().__init__(data, mem)
-        add = python(f"{data}+args[0]",mem)
+        add = python(f"{data}+args[0].ref()",mem)
+        sub = python(f"{data}-args[0].ref()",mem)
+        mul = python(f"{data}*args[0].ref()",mem)
+        tdiv = python(f"{data}/args[0].ref()",mem)
+        fdiv = python(f"{data}//args[0].ref()",mem)
         self.local.set("add",add)
-    
+        self.local.set("sub",sub)
+        self.local.set("mul",mul)
+        self.local.set("true_div",tdiv)
+        self.local.set("floor_div",fdiv)
+
     def ref(self):
         if self.data == int(self.data):
             return int(self.data) # return as int if there is no fractional value

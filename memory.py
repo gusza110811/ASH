@@ -6,7 +6,7 @@ class Memory:
         self.utils = Utils(self)
         self.vars = {}
 
-        self.parent = parent  # for nested scopes, optional
+        self.parent = parent  # for nested scopes
 
     def get(self, name: str):
         if name in self.vars:
