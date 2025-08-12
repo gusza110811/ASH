@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from type import *
 import builtin
@@ -5,7 +6,7 @@ import sys
 import re
 
 class Shell:
-    def __init__(self,executor:"Executor"):
+    def __init__(self,executor:Executor):
         self.executor = executor
         return
 
@@ -51,7 +52,7 @@ class Memory:
 
 
 class Executor:
-    def __init__(self, parser:"Parser", memory:Memory):
+    def __init__(self, parser:Parser, memory:Memory):
         self.parser = parser
         self.memory = memory
 
@@ -86,7 +87,7 @@ class Executor:
         return None, None, None
 
 class Parser:
-    def __init__(self,utils:"Utils"):
+    def __init__(self,utils:Utils):
         self.utils = utils
         return
 
