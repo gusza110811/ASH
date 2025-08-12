@@ -11,7 +11,7 @@ class Shell:
         return
 
     def c(self):
-        print("gSH (c) 2025 S. \"Gusza\" N.")
+        print("ASH (c) 2025 S. \"Gusza\" N.")
 
     def main(self):
         while True:
@@ -44,7 +44,7 @@ class Memory:
 
     def set(self, name: str, value: obj):
         if not isinstance(value,obj):
-            value = self.utils.pytype_to_gsh_type(value)
+            value = self.utils.pytype_to_ash_type(value)
         self.vars[name] = value
 
     def exists(self, name: str) -> bool:
@@ -67,7 +67,7 @@ class Executor:
                     expr.params[idx] = param.ref(mem=memory)
 
             result = expr.call(self.memory)
-            return self.parser.utils.pytype_to_gsh_type(result)
+            return self.parser.utils.pytype_to_ash_type(result)
 
         if isinstance(expr,call) or isinstance(expr,assignment):
             return caller(expr)
@@ -252,7 +252,7 @@ class Utils:
         except ValueError:
             return False
 
-    def pytype_to_gsh_type(self,value):
+    def pytype_to_ash_type(self,value):
         if isinstance(value,obj):
             return value
 
@@ -263,7 +263,7 @@ class Utils:
         if isinstance(value,typing.Iterable):
             return array(value)
     
-    def gsh_type_to_pytype(self,value):
+    def ash_type_to_pytype(self,value):
         return value.ref()
 
     def dump_mem(self,mem:Memory):

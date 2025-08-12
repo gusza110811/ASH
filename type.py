@@ -9,10 +9,10 @@ class obj:
             self.data = self
         return
     
-    def ref(self,mem:"gsh.Memory"=None): # when the object is referenced. ie. `foo`
+    def ref(self,mem:"ash.Memory"=None): # when the object is referenced. ie. `foo`
         return self.data
 
-    def call(self, args:list, mem:"gsh.Memory") -> typing.Any: # when the object is called . ie. `foo()`
+    def call(self, args:list, mem:"ash.Memory") -> typing.Any: # when the object is called . ie. `foo()`
         return
 
 class python(obj):
@@ -35,11 +35,11 @@ class num(obj):
 class array(obj):
     def __init__(self, data:typing.Iterable):
         super().__init__(data)
-    
-    def call(self,param,mem):
-        idx = param[0]
+
+    def call(self,param:list[num],mem):
+        idx = param[0].ref()
         try:
-            idx2 = param[1]
+            idx2 = param[1].ref()
             return self.data[idx:idx2]
         except IndexError:
             return self.data[idx]
@@ -92,9 +92,9 @@ class assignment(meta):
         self.name = data[0].get_name()
         self.params = [data[1]]
 
-    def call(self, mem:"gsh.Memory"):
+    def call(self, mem:"ash.Memory"):
         mem.set(self.name, self.params[0])
         return
 
 if TYPE_CHECKING:
-    import gsh
+    import ash
