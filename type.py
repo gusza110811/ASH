@@ -75,37 +75,50 @@ class meta(obj):
         super().__init__(data, mem)
 
 class call(meta):
-    def __init__(self, data:list[obj,list[obj]], mem:memory.Memory):
-        self.name = data[0]
-        self.params = data[1]
+    def __init__(self, data:list[str|list[obj]], mem:memory.Memory):
+        self.name:str = data[0]
+        self.params:list[obj] = data[1]
         super().__init__(data, mem)
 
-    def call(self, mem):
-        return self.name.call(self.params,mem)
+    def call(self, mem:memory.Memory):
+        target:obj = mem.get(self.name.pop(0))
+        while self.name:
+            self.local = target.local
+            target = self.local.get(self.name.pop(0))
+        result = target.call(self.params,self.local)
+        return result
 
 # placeholder if the token doesnt match anything above, i.e function name, variables etc
 class reference(meta):
-    def __init__(self, data:str, mem:memory.Memory):
+    def __init__(self, data:list[str], mem:memory.Memory):
         self.name = data
-        super().__init__(data, mem)
+        return super().__init__(data, mem)
     
     def ref(self,mem):
-        return mem.get(self.name)
+        result:obj = mem.get(self.name.pop(0))
+        while self.name:
+            self.local = result.local
+            result = self.local.get(self.name.pop(0))
+        return result
 
     def get_name(self):
         return self.name
 
 # soon-to-be or never-to-be references
 class undefined(reference): # inherits reference only because it does similar job
-    def __init__(self, data:str, mem:memory.Memory):
+    def __init__(self, data:list[str], mem:memory.Memory):
         self.name = data
+        super().__init__(data,mem)
 
     def ref(self, *args, **kwargs):
-        raise NameError(f"{self.name} is not defined")
+        if len(self.name) == 1:
+            raise NameError(f"{self.name} is not defined")
+        else:
+            raise NameError(f"{":".join(self.name[:-1])} does not contain {self.name[-1]}")
 
 class assignment(meta):
     def __init__(self, data: list[undefined|reference|obj], mem:memory.Memory):
-        self.name = data[0].get_name()
+        self.name = data[0].get_name()[0]
         self.params = [data[1]]
 
     def call(self, mem:memory.Memory):

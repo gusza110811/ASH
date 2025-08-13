@@ -137,7 +137,7 @@ class Parser:
                     else:
                         break
                 name = tokensline.pop(0)
-                mem.set(name.name, obj())
+                mem.set(name.name[-1], obj())
                 value = self.parse(unparsedvalue, mem)[0]
                 tokensline.append(assignment([name, value],mem))
                 words = newwords
@@ -145,13 +145,15 @@ class Parser:
             # accessing local things
             elif token == ":":
                 if len(tokensline) == 0:
-                    raise SyntaxError("Unexpected /")
+                    raise SyntaxError("Unexpected `:`")
                 parent = tokensline.pop(0)
-                if isinstance(parent,reference):
-                    parent = parent.ref(mem)
                 child = words.pop(0)
-                result = reference(child,parent.local)
-                tokensline.append(result)
+                if isinstance(parent,reference):
+                    parent.name.append(child)
+                    tokensline.append(parent)
+                else:
+                    ref = reference(child,parent.local)
+                    tokensline.append(ref)
 
             # array
             elif token.startswith("("):
@@ -214,12 +216,11 @@ class Parser:
 
                         token2 = tokensline[idx+1]
                         if not isinstance(token2,array): raise IndexError # does not make sense but idrc lol
-                        tokensline[idx] = call([token.ref(mem=token.local.parent),token2.ref()],mem)
+                        tokensline[idx] = call([token.name,token2.ref()],mem)
                         tokensline.pop(idx+1)
                     except IndexError:
                         continue
                 if len(tokensline) > 1:
-                    print(tokensline)
                     raise SyntaxError("Too many expressions in one line")
 
                 tokens.append(tokensline[0])
@@ -227,10 +228,9 @@ class Parser:
 
             else:
                 if mem.exists(token):
-                    tokensline.append(reference(token,mem))
+                    tokensline.append(reference([token],mem))
                 else:
-                    tokensline.append(undefined(token,mem))
-
+                    tokensline.append(undefined([token],mem))
         return tokens
 
 
