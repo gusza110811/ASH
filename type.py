@@ -71,7 +71,7 @@ class boolean(obj):
 
 ### Things that have hidden the fact that its just like regular objects
 class meta(obj):
-    def __init__(self, data, mem:memory.Memory):
+    def __init__(self, data=None, mem:memory.Memory=None):
         super().__init__(data, mem)
 
 class call(meta):
@@ -93,9 +93,9 @@ class reference(meta):
     def __init__(self, data:list[str], mem:memory.Memory):
         self.name = data
         return super().__init__(data, mem)
-    
-    def ref(self,mem):
-        result:obj = mem.get(self.name.pop(0))
+
+    def ref(self):
+        result:obj = self.local.parent.get(self.name.pop(0))
         while self.name:
             self.local = result.local
             result = self.local.get(self.name.pop(0))
@@ -118,11 +118,17 @@ class undefined(reference): # inherits reference only because it does similar jo
 
 class assignment(meta):
     def __init__(self, data: list[undefined|reference|obj], mem:memory.Memory):
-        self.name = data[0].get_name()[0]
+        self.local = mem
+        self.path = data[0].get_name()
         self.params = [data[1]]
+        self.name = self.path.pop(0)
+        while self.path:
+            self.local:memory.Memory = self.local.get(self.name).local
+            self.name = self.path.pop(0)
+        self.local.set(self.name, obj())
 
     def call(self, mem:memory.Memory):
-        mem.set(self.name, self.params[0])
+        self.local.set(self.name, self.params[0])
         return
 
 if TYPE_CHECKING:

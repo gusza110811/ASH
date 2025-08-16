@@ -28,6 +28,12 @@ class Utils:
     def ash_type_to_pytype(self,value):
         return value.ref()
 
-    def dump_mem(self,mem):
+    def dump_mem(self,mem:memory.Memory, indent=0):
         for idx, (name, value) in enumerate(mem.vars.items()):
-            print(f"{idx} {name}: {str(type(value))[13:-2]} < {value.ref()} >")
+            print(f"{" "*indent}{idx} {name}: {str(type(value))[13:-2]} < {value.ref()} >")
+            if value.local:
+                self.dump_mem(value.local,indent+4)
+
+if typing.TYPE_CHECKING:
+    import type
+    import memory

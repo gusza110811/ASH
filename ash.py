@@ -36,14 +36,13 @@ class Executor:
         self.memory = memory
 
     def executelineparsed(self, expr:obj):
-
         def caller(expr:call):
             # check if any of the parameters are function to be called
             for idx, param in enumerate(expr.params):
                 if isinstance(param,call):
                     expr.params[idx] = caller(param)
                 elif isinstance(param,reference):
-                    expr.params[idx] = param.ref(mem=self.memory)
+                    expr.params[idx] = param.ref()
 
             result = expr.call(self.memory)
             return self.parser.utils.pytype_to_ash_type(result)
@@ -81,19 +80,19 @@ class Parser:
         # symbol separator
         tmp = words
         words = []
-        symbols = list("{}[]()<>+-=*&^|/:;,")
+        symbols = list("{}[]()<>+-=*&^|/:;,.")
         while len(tmp) != 0:
             word = list(tmp.pop(0))
             new = ""
             while len(word) !=0:
                 char = word.pop(0)
-                if not(char in symbols):
-                    new += char
-                else:
+                if (char in symbols):
                     if new:
                         words.append(new)
                     words.append(char)
                     new = ""
+                    continue
+                new += char
             if new:
                 words.append(new)
 
@@ -137,15 +136,22 @@ class Parser:
                     else:
                         break
                 name = tokensline.pop(0)
-                mem.set(name.name[-1], obj())
                 value = self.parse(unparsedvalue, mem)[0]
                 tokensline.append(assignment([name, value],mem))
                 words = newwords
             
             # accessing local things
-            elif token == ":":
+            elif token == ".":
+                testing = words.pop(0)
+                if isinstance(tokensline[-1],num) and utils.can_num(testing):
+                    whole = tokensline.pop().ref()
+                    fraction = float(f"0.{testing}")
+                    tokensline.append(num(whole+fraction,mem))
+                    continue
+                words.insert(0,testing)
+
                 if len(tokensline) == 0:
-                    raise SyntaxError("Unexpected `:`")
+                    raise SyntaxError("Unexpected `.`")
                 parent = tokensline.pop(0)
                 child = words.pop(0)
                 if isinstance(parent,reference):
