@@ -76,7 +76,7 @@ class meta(obj):
 
 class call(meta):
     def __init__(self, data:list[str|list[obj]], mem:memory.Memory):
-        self.name:str = data[0]
+        self.name:list[str] = data[0]
         self.params:list[obj] = data[1]
         super().__init__(data, mem)
 
@@ -92,7 +92,7 @@ class call(meta):
 class reference(meta):
     def __init__(self, data:list[str], mem:memory.Memory):
         self.name = data
-        return super().__init__(data, mem)
+        self.local = mem
 
     def ref(self):
         result:obj = self.local.parent.get(self.name.pop(0))

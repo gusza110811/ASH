@@ -142,23 +142,26 @@ class Parser:
             
             # accessing local things
             elif token == ".":
-                testing = words.pop(0)
+                if len(tokensline) == 0:
+                    raise SyntaxError("Unexpected `.`")
+
+                testing = words[0]
                 if isinstance(tokensline[-1],num) and utils.can_num(testing):
                     whole = tokensline.pop().ref()
                     fraction = float(f"0.{testing}")
                     tokensline.append(num(whole+fraction,mem))
+                    words.pop(0)
                     continue
-                words.insert(0,testing)
 
-                if len(tokensline) == 0:
-                    raise SyntaxError("Unexpected `.`")
                 parent = tokensline.pop(0)
                 child = words.pop(0)
                 if isinstance(parent,reference):
                     parent.name.append(child)
                     tokensline.append(parent)
                 else:
-                    ref = reference(child,parent.local)
+                    mem.set(parent,parent)
+                    ref = reference([parent],mem)
+                    ref.name.append(child)
                     tokensline.append(ref)
 
             # array
@@ -227,6 +230,7 @@ class Parser:
                     except IndexError:
                         continue
                 if len(tokensline) > 1:
+                    print(tokensline)
                     raise SyntaxError("Too many expressions in one line")
 
                 tokens.append(tokensline[0])
