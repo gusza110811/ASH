@@ -21,7 +21,10 @@ class obj:
     def call(self, args:list, mem:memory.Memory) -> typing.Any: # when the object is called . ie. `foo()`
         return
 
-class python(obj):
+    def __str__(self):
+        return f"<{self.__class__.__name__} : {self.data}>"
+
+class Builtin(obj):
     def __init__(self, data, mem:memory.Memory):
         super().__init__(data, mem)
 
@@ -31,11 +34,11 @@ class python(obj):
 class num(obj):
     def __init__(self, data:int|float, mem:memory.Memory):
         super().__init__(data, mem)
-        add = python(f"{data}+args[0].ref()",mem)
-        sub = python(f"{data}-args[0].ref()",mem)
-        mul = python(f"{data}*args[0].ref()",mem)
-        tdiv = python(f"{data}/args[0].ref()",mem)
-        fdiv = python(f"{data}//args[0].ref()",mem)
+        add = Builtin(f"{data}+args[0].ref()",mem)
+        sub = Builtin(f"{data}-args[0].ref()",mem)
+        mul = Builtin(f"{data}*args[0].ref()",mem)
+        tdiv = Builtin(f"{data}/args[0].ref()",mem)
+        fdiv = Builtin(f"{data}//args[0].ref()",mem)
         self.local.set("add",add)
         self.local.set("sub",sub)
         self.local.set("mul",mul)
@@ -68,68 +71,6 @@ class boolean(obj):
     def __init__(self, data:bool, mem:memory.Memory):
         super().__init__(data, mem)
 
-
-### Things that have hidden the fact that its just like regular objects
-class meta(obj):
-    def __init__(self, data=None, mem:memory.Memory=None):
-        super().__init__(data, mem)
-
-class call(meta):
-    def __init__(self, data:list[str|list[obj]], mem:memory.Memory):
-        self.name:list[str] = data[0]
-        self.params:list[obj] = data[1]
-        super().__init__(data, mem)
-
-    def call(self, mem:memory.Memory):
-        target:obj = mem.get(self.name.pop(0))
-        while self.name:
-            self.local = target.local
-            target = self.local.get(self.name.pop(0))
-        result = target.call(self.params,self.local)
-        return result
-
-# placeholder if the token doesnt match anything above, i.e function name, variables etc
-class reference(meta):
-    def __init__(self, data:list[str], mem:memory.Memory):
-        self.name = data
-        self.local = mem
-
-    def ref(self):
-        result:obj = self.local.parent.get(self.name.pop(0))
-        while self.name:
-            self.local = result.local
-            result = self.local.get(self.name.pop(0))
-        return result
-
-    def get_name(self):
-        return self.name
-
-# soon-to-be or never-to-be references
-class undefined(reference): # inherits reference only because it does similar job
-    def __init__(self, data:list[str], mem:memory.Memory):
-        self.name = data
-        super().__init__(data,mem)
-
-    def ref(self, *args, **kwargs):
-        if len(self.name) == 1:
-            raise NameError(f"{self.name} is not defined")
-        else:
-            raise NameError(f"{":".join(self.name[:-1])} does not contain {self.name[-1]}")
-
-class assignment(meta):
-    def __init__(self, data: list[undefined|reference|obj], mem:memory.Memory):
-        self.local = mem
-        self.path = data[0].get_name()
-        self.params = [data[1]]
-        self.name = self.path.pop(0)
-        while self.path:
-            self.local:memory.Memory = self.local.get(self.name).local
-            self.name = self.path.pop(0)
-        self.local.set(self.name, obj())
-
-    def call(self, mem:memory.Memory):
-        self.local.set(self.name, self.params[0])
-        return
 
 if TYPE_CHECKING:
     import ash
