@@ -1,76 +1,125 @@
 import typing
-from typing import TYPE_CHECKING
 import memory
 
-class obj:
-    def __init__(self,data=None,mem:memory.Memory=None):
-        if mem:
-            self.local = memory.Memory(mem)
-        else:
-            self.local = memory.Memory()
+class Obj:
+    def __init__(self, data=None, mem:memory.Memory=None):
+        self.local = memory.Memory(mem) if mem else memory.Memory()
+        self.data = data
 
-        if data is not None:
-            self.data = data
-        else:
-            self.data = self
-        return
-    
-    def ref(self,mem:memory.Memory=None): # when the object is referenced. ie. `foo`
+    def getValue(self):
+        """Return the underlying Python primitive (int, str, etc)."""
         return self.data
 
-    def call(self, args:list, mem:memory.Memory) -> typing.Any: # when the object is called . ie. `foo()`
-        return
+    def call(self, args:list, mem:memory.Memory) -> typing.Any:
+        """Override for callable objects (functions, arrays, etc)."""
+        raise TypeError(f"{self} is not callable")
 
-    def __str__(self):
-        return f"<{self.__class__.__name__} : {self.data}>"
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: {self.data}>"
 
-class Builtin(obj):
-    def __init__(self, data, mem:memory.Memory):
+# --- Builtins ---
+
+class Builtin(Obj):
+    def __init__(self, fn, mem:memory.Memory=None):
+        super().__init__(fn, mem)
+
+    def call(self, args, mem):
+        return self.data(args, mem)
+
+# --- Primitive types ---
+
+class Num(Obj):
+    def __init__(self, data:int|float, mem:memory.Memory=None):
         super().__init__(data, mem)
+        # Add arithmetic methods
+        self.local.set("add", Builtin(lambda args, m: Num(self.getValue() + args[0].getValue(), m), mem))
+        self.local.set("sub", Builtin(lambda args, m: Num(self.getValue() - args[0].getValue(), m), mem))
+        self.local.set("mul", Builtin(lambda args, m: Num(self.getValue() * args[0].getValue(), m), mem))
+        self.local.set("true_div", Builtin(lambda args, m: Num(self.getValue() / args[0].getValue(), m), mem))
+        self.local.set("floor_div", Builtin(lambda args, m: Num(self.getValue() // args[0].getValue(), m), mem))
 
-    def call(self,args,mem):
-        return eval(self.data,{"args":args})
+    def getValue(self):
+        val = self.data
+        return int(val) if isinstance(val, float) and val.is_integer() else val
 
-class num(obj):
-    def __init__(self, data:int|float, mem:memory.Memory):
-        super().__init__(data, mem)
-        add = Builtin(f"{data}+args[0].ref()",mem)
-        sub = Builtin(f"{data}-args[0].ref()",mem)
-        mul = Builtin(f"{data}*args[0].ref()",mem)
-        tdiv = Builtin(f"{data}/args[0].ref()",mem)
-        fdiv = Builtin(f"{data}//args[0].ref()",mem)
-        self.local.set("add",add)
-        self.local.set("sub",sub)
-        self.local.set("mul",mul)
-        self.local.set("true_div",tdiv)
-        self.local.set("floor_div",fdiv)
+class Array(Obj):
+    def __init__(self, data:typing.Iterable, mem:memory.Memory=None):
+        super().__init__(list(data), mem)
 
-    def ref(self):
-        if self.data == int(self.data):
-            return int(self.data) # return as int if there is no fractional value
-        else:
-            return self.data
-
-class array(obj):
-    def __init__(self, data:typing.Iterable, mem:memory.Memory):
-        super().__init__(data, mem)
-
-    def call(self,param:list[num],mem):
-        idx = param[0].ref()
-        try:
-            idx2 = param[1].ref()
-            return self.data[idx:idx2]
-        except IndexError:
+    def call(self, args:list, mem:memory.Memory):
+        idx = args[0].getValue()
+        if len(args) == 1:
             return self.data[idx]
+        elif len(args) == 2:
+            return self.data[idx:args[1].getValue()]
+        else:
+            raise TypeError("Array call expects 1 or 2 arguments")
 
-class string(array):
-    def __init__(self, data:str, mem:memory.Memory):
+class String(Array):
+    def __init__(self, data:str, mem:memory.Memory=None):
         super().__init__(data, mem)
 
-class boolean(obj):
-    def __init__(self, data:bool, mem:memory.Memory):
+class Boolean(Obj):
+    def __init__(self, data:bool, mem:memory.Memory=None):
         super().__init__(data, mem)
 
 
-if TYPE_CHECKING:
-    import ash
+# AST
+class Node:
+    def eval(self, mem:memory.Memory) -> Obj:
+        raise NotImplementedError
+
+class Var(Node):
+    def __init__(self, type:str, name:str, value:Node):
+        self.type = type
+        self.name = name
+        self.value = value
+
+    def eval(self, mem:memory.Memory):
+        val = self.value.eval(mem)
+        mem.set(self.name, val)
+        return val
+    
+    def __repr__(self):
+        return f"<Var name:{self.name} value:{self.value}>"
+
+class Call(Node):
+    def __init__(self, object:Node, parameter:Node):
+        self.object = object
+        self.parameter = parameter
+    
+    def eval(self, mem):
+        return self.object.eval(mem).call(self.parameter.eval(mem).getValue())
+
+    def __repr__(self):
+        return f"<Call {repr(self.object)}({repr(self.parameter)})>"
+
+class Literal(Node):
+    def __init__(self, type:typing.Literal["string","number","boolean","array"], value):
+        self.type = type.lower()
+        self.value = value
+
+    def eval(self, mem:memory.Memory):
+        if self.type == "string":
+            return String(self.value, mem)
+        elif self.type == "number":
+            return Num(self.value, mem)
+        elif self.type == "boolean":
+            return Boolean(self.value, mem)
+        elif self.type == "array":
+            return Array(self.value, mem)
+        else:
+            raise TypeError(f"Unknown literal type {self.type}")
+    
+    def __repr__(self):
+        return f"<Literal of {self.type.capitalize()}: {repr(self.value)}>"
+
+class Identifier(Node):
+    def __init__(self, name:str):
+        self.name = name
+
+    def eval(self, mem:memory.Memory):
+        return mem.get(self.name)
+
+    def __repr__(self):
+        return f"<Identifier {self.name}>"
