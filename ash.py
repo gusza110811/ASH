@@ -15,8 +15,8 @@ def print_list(data, indent=0):
 
 def shell(lexer:p.Lexer):
     while 1:
-        regex = lexer.tokenize(input("ASH>"))
-        print_list(regex)
+        tokens = lexer.tokenize(input("ASH>"))
+        print_list(tokens)
 
 if __name__ == "__main__":
     lexer = p.Lexer()
@@ -31,4 +31,6 @@ if __name__ == "__main__":
 
     code = open(source).read()
 
-    print_list(lexer.tokenize(code))
+    tokens = lexer.tokenize(code)
+
+    print_list(tokens)

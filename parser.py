@@ -2,17 +2,14 @@ import re
 
 # Define token types and their corresponding regular expressions
 TOKEN_SPECS = [
-    ('NUMBER', r'\d+(.\d+)?'),
-    ('STRING', r'"(.*)"'),
-    ('STRING', r'\'(.*)\''),
-    ('BOOL', r'true|false'),
-    ('NIL', r'nil'),
+    ('NUMBER', r'\d+(\.\d+)?'),
+    ('STRING', r'"([^"]*)"|\'([^\']*)\''),
 
     ('PLUS', r'\+'),
     ('MINUS', r'\-'),
     ('MULTIPLY', r'\*'),
-    ('DIVIDE', r'\/'),
     ('FLOOR_DIVIDE', r'\/\/'),
+    ('DIVIDE', r'\/'),
 
     ('EQUALS', r'=='),
     ('MOREEQUAL', r'>='),
@@ -37,8 +34,6 @@ TOKEN_SPECS = [
     ('LCURLY', r'\{'),
     ('RCURLY', r'\}'),
 
-    ('KEYWORD', r'function|return|end|repeat|until'),
-
     ('IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),
 
     ('NEWLINE', r'\n'),
@@ -46,6 +41,11 @@ TOKEN_SPECS = [
 
     ('ASSIGN', r'='),
 ]
+KEYWORDS = {"function", "return", "end",
+    "repeat", "until",
+    "if", "then", "else",
+    "true", "false", "nil"
+}
 
 class Token:
     def __init__(self, type, value):
@@ -70,6 +70,8 @@ class Lexer:
                 #print(token_type, pattern, "->", match, f"@{pos}/{len(text)}")
                 if match:
                     value = match.group(0)
+                    if token_type == "IDENTIFIER" and value in KEYWORDS:
+                        token_type = "KEYWORD"
                     if token_type != 'WHITESPACE':  # Ignore whitespace tokens
                         tokens.append(Token(token_type, value))
                     pos += len(value)
